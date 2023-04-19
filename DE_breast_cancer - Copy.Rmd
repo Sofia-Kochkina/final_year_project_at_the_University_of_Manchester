@@ -1,7 +1,3 @@
----
-title: "R Notebook"
-output: html_notebook
----
 ```{r}
 library(DESeq2)
 library(pheatmap)
@@ -12,35 +8,27 @@ library("AnnotationDbi")
 library(ggrepel)
 library(PPInfer)
 ```
-
 ```{r}
 Counts <- read.delim("DESeq2_input_exclude_BAP22.y_BCPT10.y_.csv", header=TRUE, row.names=1, sep=";")
 Counts       #delete later
 ```
-
-
 ```{r}
 condition <- factor(c("high", "high", "high", "high", "high", "medium", "medium", "medium", "medium", "medium", "medium", "medium", "medium", "medium", "medium", "medium", "medium", "medium", "medium", "medium", "medium", "low", "low", "low", "low", "low"))
 coldata <- data.frame(row.names=colnames(Counts), condition)
 
 dds <- DESeqDataSetFromMatrix(countData=Counts, colData=coldata, design=~condition)
 dds <- DESeq(dds)
-
 ```
 ```{r}
 normalized_counts <- counts(dds, normalized=TRUE)   #use as an input for PCA and tSNE in Python
 write.csv(normalized_counts, "C:\\Users\\sofya\\Documents\\final year project\\normalized_counts_after_DESeq2_for_visualisation.csv", row.names=TRUE)
 ```
-
 ```{r}
 rld <- rlog(dds, blind=TRUE)                                                 #choose rlog() or vst(); note the batch effect
 rld_mat <- assay(rld)   
 rld_cor <- cor(rld_mat)       #compute pairwise-correlation
 pheatmap(rld_cor, annotation_col = coldata)                                  #hierarchical clustering
-
 ```
-
-
 ```{r}
 vsdata <- vst(dds, blind=TRUE)      #did not produce good clustering based on MD, so sckit-learn plot was used
 
@@ -80,7 +68,6 @@ PCA <- function (object, ...)
 }
 PCA(vsdata)  #def ntop=1000
 ```
-
 ```{r}
 plotDispEsts(dds)     #dispersion
 ```
@@ -94,7 +81,6 @@ res_volc <- na.omit(res_volcano)                                                
 res_volc$diffexpressed <- "NO"
 res_volc$diffexpressed[res_volc$log2FoldChange > 1 & res_volc$pvalue < 0.05] <- "UP"
 res_volc$diffexpressed[res_volc$log2FoldChange < -1 & res_volc$pvalue < 0.05] <- "DOWN"
-
 
 res_volc$gene_symbol <- mapIds(org.Hs.eg.db, keys = rownames(res_volc), keytype = "ENSEMBL", column = "SYMBOL")
 res_volc$delabel <- NA
@@ -115,11 +101,9 @@ res_volc$genes_of_interest <- ifelse(rownames(res_volc) == "ENSG00000082175" | r
 
 ggplot(data=as.data.frame(res_volc), aes(x=log2FoldChange, y=-log10(pvalue), col=diffexpressed, label=delabel)) + geom_point() + geom_text_repel(max.overlaps = 10, col = "black") + geom_vline(xintercept=c(-1, 1), col="red") + geom_hline(yintercept=-log10(0.05), col="red") + scale_color_manual(values=c("DOWN" = "blue", "NO" = "grey", "UP" = "red")) + theme_minimal()
 
-
 ggplot(as.data.frame(res_volc), aes(log2FoldChange, -log10(pvalue), col=diffexpressed)) + geom_point() + geom_text_repel(aes(log2FoldChange, -log10(pvalue)), label = ifelse(res_volc$genes_of_interest, res_volc$gene_symbol, ""), col = "black", max.overlaps = Inf) + geom_vline(xintercept=c(-1, 1), col="red") + geom_hline(yintercept=-log10(0.05), col="red") + scale_color_manual(values=c("DOWN" = "lightblue", "NO" = "lightgrey", "UP" = "pink")) + theme_minimal()
 
 ```
-
 ```{r}
 sigs <- na.omit(res)                #delete rows with NA
 sigs <- sigs[(sigs$padj<0.15) & (sigs$log2FoldChange>1 | sigs$log2FoldChange< -1),]
@@ -147,7 +131,6 @@ genes <- c(sigs.df$symbol[x], sigs.df$symbol[x1], sigs.df$symbol[x2], sigs.df$sy
 
 ha = rowAnnotation(foo = anno_mark(at = c(x, x1, x2, x3, x4, x5, x6, x7), labels = genes))                               #hierarchical clustering
 Heatmap(mat.z, cluster_rows = T, cluster_columns = T, right_annotation = ha, column_labels = condition, name = "Z-score")
-
 ```
 ```{r}
 genes_for_GO <- rownames(sigs)
@@ -156,36 +139,26 @@ GO_res <- enrichGO(gene = genes_for_GO, OrgDb = "org.Hs.eg.db", keyType = "ENSEM
 ```{r}
 #write.csv(GO_res, "C:\\Users\\sofya\\Documents\\final year project\\GO_results.csv", row.names=TRUE)
 ```
-
-
 ```{r}
 GO_res_df <- summary(GO_res)
 GO_term <- GO_res_df$Description[order(GO_res_df$Count, decreasing = T)]
 barplot(GO_res, showCategory=GO_term[1:10], order=T)
 dotplot(GO_res, order=TRUE, showCategory=GO_term[1:10], font.size = 10)
 ```
-
-
 ```{r}
 subset <- subset(res, log2FoldChange > 0.5 | log2FoldChange < -0.5)
 subset
 ```
-
-
 ```{r}
 rank <- subset$log2FoldChange     #change to sort for GSEA by different parameter
 gene_list <- rank
 gene_list <- gene_list[order(-rank)]
 names(gene_list) <- rownames(subset)
 new_res <- na.omit(gene_list)
-
 ```
 ```{r}
 as.data.frame(new_res)
 ```
-
-
-
 ```{r}
 library(msigdbr)
 #gsea <- gseGO(new_res, ont = "BP", keyType = "ENSEMBL", OrgDb = "org.Hs.eg.db", eps = 1e-300)
@@ -193,32 +166,19 @@ mm_hallmark_sets <- msigdbr(species = "Homo sapiens", category = "H")
 gsea <- GSEA(new_res, pvalueCutoff = 0.05, eps = 0, seed = TRUE, pAdjustMethod = "BH", TERM2GENE = dplyr::select(mm_hallmark_sets, gs_name, human_ensembl_gene))
 as.data.frame(gsea)
 ```
-
 ```{r}
 write.csv(gsea, "C:\\Users\\sofya\\Documents\\final year project\\GSEA_results_log2_05_2_excluded.csv", row.names=F)
 ```
-
-
 ```{r}
 GSEA_res_df <- as.data.frame(gsea)
 GSEA_term <- GSEA_res_df$ID[order(GSEA_res_df$enrichmentScore, decreasing = T)]
 #barplot(gsea, showCategory=GSEA_term[1:10], order=T)
 dotplot(gsea, x = gsea$NES[1:10], order=TRUE, showCategory=10, font.size = 10)
 ```
-
 ```{r}
 fit1 <- gseaplot(gsea, geneSetID = 4,  title="ESTROGEN RESPONSE LATE")
 png("ESTROGEN_RESPONSE_LATE_2_excluded.png", res = 250, width = 2000, height = 1300)
 print(fit1)
-```
-```{r}
-library(stringr)
-#gsea_result <-mapIDs(org.Hs.eg.db, keys = sapply(str_split(gsea$core_enrichment, "/"),"[[",1), keytype"ENSEMBL")
-#gsea_result <- str_split(gsea$core_enrichment, "/")
-#as.data.frame(sapply(str_split(gsea$core_enrichment, "/"),"[[",1))
-ids <- sapply(str_split(gsea$core_enrichment, "/"),"[[",1)
-gsea_results <- mapIds(org.Hs.eg.db, keys = as.data.frame(ids)$ids, keytype="ENSEMBL", column = "SYMBOL")
-gsea_results
 ```
 
 
