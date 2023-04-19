@@ -1,6 +1,6 @@
 # Final year project at the University of Manchester
 
-This code allows to perform standard visualisation and alalysis of bulk RNAseq data:
+This code allows to perform standard visualisation and analysis of bulk RNAseq data:
   * dispersion plot
   * volcano plot
   * tSNE plot
