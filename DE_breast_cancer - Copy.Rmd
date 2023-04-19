@@ -28,26 +28,57 @@ dds <- DESeq(dds)
 
 ```
 ```{r}
-normalized_counts <- counts(dds, normalized=TRUE)   #write normalized counts into a file to use as an input for PCA and tSNE in Python
+normalized_counts <- counts(dds, normalized=TRUE)   #use as an input for PCA and tSNE in Python
 write.csv(normalized_counts, "C:\\Users\\sofya\\Documents\\final year project\\normalized_counts_after_DESeq2_for_visualisation.csv", row.names=TRUE)
 ```
 
 ```{r}
-rld <- rlog(dds, blind=TRUE)                                                 #here can choose rlog() or vst(); note the batch effect
+rld <- rlog(dds, blind=TRUE)                                                 #choose rlog() or vst(); note the batch effect
 rld_mat <- assay(rld)   
 rld_cor <- cor(rld_mat)       #compute pairwise-correlation
 pheatmap(rld_cor, annotation_col = coldata)                                  #hierarchical clustering
 
 ```
-```{r}
-getMethod("plotPCA","DESeqTransform")
-```
 
 
 ```{r}
-#vsdata <- vst(dds, blind=TRUE)      #this PCA plot did not produce good clustering based on MD, so sckit-learn plot was used
-#plotPCA(vsdata, ntop=20000, PCs = c(1,2))  #def ntop=1000
+vsdata <- vst(dds, blind=TRUE)      #did not produce good clustering based on MD, so sckit-learn plot was used
 
+PCA <- function (object, ...) 
+{
+    .local <- function (object, intgroup = "condition", ntop = 300, 
+        returnData = FALSE) 
+    {
+        rv <- rowVars(assay(object))
+        select <- order(rv, decreasing = TRUE)[seq_len(min(ntop, 
+            length(rv)))]
+        pca <- prcomp(t(assay(object)[select, ]))
+        percentVar <- pca$sdev^2/sum(pca$sdev^2)
+        if (!all(intgroup %in% names(colData(object)))) {
+            stop("the argument 'intgroup' should specify columns of colData(dds)")
+        }
+        intgroup.df <- as.data.frame(colData(object)[, intgroup, 
+            drop = FALSE])
+        group <- if (length(intgroup) > 1) {
+            factor(apply(intgroup.df, 1, paste, collapse = ":"))
+        }
+        else {
+            colData(object)[[intgroup]]
+        }
+        d <- data.frame(PC1 = pca$x[, 2], PC2 = pca$x[, 3], group = group,
+            intgroup.df, name = colnames(object))
+        if (returnData) {
+            attr(d, "percentVar") <- percentVar[1:2]
+            return(d)
+        }
+        ggplot(data = d, aes_string(x = "PC1", y = "PC2", color = "group")) + 
+            geom_point(size = 3) + xlab(paste0("PC2: ", round(percentVar[2] * 
+            100), "% variance")) + ylab(paste0("PC3: ", round(percentVar[3] * 
+            100), "% variance")) + coord_fixed()
+    }
+    .local(object, ...)
+}
+PCA(vsdata)  #def ntop=1000
 ```
 
 ```{r}
@@ -55,7 +86,7 @@ plotDispEsts(dds)     #dispersion
 ```
 ```{r}
 res <- results(dds, contrast = c("condition", "high", "low"), alpha = 0.15) #default alpha = 0.1, increased for more genes for GO
-res    #input for IPA
+write.csv(res, "C:\\Users\\sofya\\Documents\\final year project\\IPA_input_alpha_0.15.csv", row.names=TRUE)    #input for IPA
 ```
 ```{r}
 res_volcano = subset(res, select = c(pvalue, log2FoldChange))
@@ -72,7 +103,15 @@ res_volc$delabel[res_volc$diffexpressed != "NO"] <- res_volc$gene_symbol[(res_vo
 res_volc$genes_of_interest <- ""
 res_volc$genes_of_interest <- ifelse(rownames(res_volc) == "ENSG00000082175" | rownames(res_volc) == "ENSG00000109321" | rownames(res_volc) == "ENSG00000162552" | rownames(res_volc) == "ENSG00000140009" | rownames(res_volc) == "ENSG00000120659" | rownames(res_volc) == "ENSG00000091831" | rownames(res_volc) == "ENSG00000101856" | rownames(res_volc) == "ENSG00000164040" | rownames(res_volc) == "ENSG00000110092", TRUE, FALSE)
 
- 
+#ENSG00000082175 = PGR
+#ENSG00000109321 = AREG
+#ENSG00000162552 = WNT4
+#ENSG00000140009 = ESR2
+#ENSG00000120659 = TNFSF11
+#ENSG00000091831 = ESR1
+#ENSG00000101856 = PGRMC1
+#ENSG00000164040 = PGRMC2
+#ENSG00000110092 = CCND1
 
 ggplot(data=as.data.frame(res_volc), aes(x=log2FoldChange, y=-log10(pvalue), col=diffexpressed, label=delabel)) + geom_point() + geom_text_repel(max.overlaps = 10, col = "black") + geom_vline(xintercept=c(-1, 1), col="red") + geom_hline(yintercept=-log10(0.05), col="red") + scale_color_manual(values=c("DOWN" = "blue", "NO" = "grey", "UP" = "red")) + theme_minimal()
 
@@ -162,8 +201,6 @@ write.csv(gsea, "C:\\Users\\sofya\\Documents\\final year project\\GSEA_results_l
 
 ```{r}
 GSEA_res_df <- as.data.frame(gsea)
-#GSEA_res_df
-#GO_res_df$enrichmentScore
 GSEA_term <- GSEA_res_df$ID[order(GSEA_res_df$enrichmentScore, decreasing = T)]
 #barplot(gsea, showCategory=GSEA_term[1:10], order=T)
 dotplot(gsea, x = gsea$NES[1:10], order=TRUE, showCategory=10, font.size = 10)
