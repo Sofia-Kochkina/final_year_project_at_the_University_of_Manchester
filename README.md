@@ -4,7 +4,7 @@ This code allows to perform standard visualisation and analysis of bulk RNAseq d
   * dispersion plot
   * volcano plot
   * tSNE plot
-  * PCA plots with loadings and the opportunity to change the PCs shown
+  * PCA plots with loadings with the opportunity to change the PCs shown
   * annotated gene expression heatmaps (hierarchical clustering)
   * GO enrichment analysis
   * Gene set enrichment analysis (GSEA)
